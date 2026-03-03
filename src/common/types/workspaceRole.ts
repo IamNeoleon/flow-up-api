@@ -1,0 +1,1 @@
+export type TWorkspaceRole = 'OWNER' | 'EDITOR' | 'MEMBER'
