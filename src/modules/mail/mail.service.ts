@@ -9,6 +9,15 @@ export class MailService {
       private readonly prismaService: PrismaService
    ) { }
 
+   private escapeHtml(input: string) {
+      return input
+         .replaceAll("&", "&amp;")
+         .replaceAll("<", "&lt;")
+         .replaceAll(">", "&gt;")
+         .replaceAll('"', "&quot;")
+         .replaceAll("'", "&#039;");
+   }
+
    async sendVerificationCode(userId: string) {
       const user = await this.prismaService.user.findUnique({
          where: {
@@ -101,5 +110,33 @@ export class MailService {
       await this.prismaService.verificationCode.delete({ where: { email } });
 
       return { message: 'Email verified' };
+   }
+
+   async sendFeedback(args: { email: string; message: string }) {
+      const email = args.email.trim().toLowerCase();
+      const message = args.message.trim();
+      const to = process.env.FEEDBACK_TO ?? process.env.MAIL_USER;
+
+      if (!to) throw new BadRequestException("Не настроен адрес получателя FEEDBACK_TO/MAIL_USER");
+
+      try {
+         await this.mailer.sendMail({
+            to,
+            subject: "Flow Up — Feedback",
+            replyTo: email,
+            html: `
+               <h2>New feedback</h2>
+               <p><strong>From:</strong> ${email}</p>
+               <hr />
+               <p style="white-space: pre-wrap; font-size: 14px; line-height: 1.6;">
+                  ${this.escapeHtml(message)}
+               </p>
+            `,
+         });
+
+         return { status: 200, message: "Sended" };
+      } catch (error) {
+         return { status: 500, message: "Error send", error: error?.message ?? String(error) };
+      }
    }
 }
