@@ -1,14 +1,5 @@
-import {
-	Body,
-	Controller,
-	Delete,
-	Get,
-	Param,
-	Patch,
-	Post,
-	UseGuards,
-} from '@nestjs/common'
-import { WorkspaceService } from './workspace.service'
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, } from '@nestjs/common'
+import { WorkspaceService } from './services/workspace.service'
 import { JwtAuthGuard } from 'src/common/guards/jwt-access.guard'
 import { WorkspaceGuard } from 'src/common/guards/workspace.guard'
 import { CreateInviteLinkDto } from './dto/create-invite-link.dto'
@@ -18,15 +9,19 @@ import { CreateWorkspaceDto } from './dto/create-workspace.dto'
 import { User } from 'src/common/decorators/user.decorator'
 import { WorkspaceContext } from 'src/common/decorators/workspace-context.decorator'
 import { type IWorkspaceContext } from 'src/common/types/workspace-context'
-import { WorkspaceStatisticsService } from './workspace-statistics.service'
+import { WorkspaceStatisticsService } from './services/workspace-statistics.service'
 import { VerifiedGuard } from 'src/common/guards/verified.guard'
+import { WorkspaceMembersService } from './services/workspace-members.service'
+import { WorkspaceInviteService } from './services/workspace-invite.service'
 
 @Controller('workspaces')
 @UseGuards(JwtAuthGuard, VerifiedGuard)
 export class WorkspaceController {
 	constructor(
 		private readonly workspaceService: WorkspaceService,
-		private readonly workspaceStatisticsService: WorkspaceStatisticsService
+		private readonly workspaceStatisticsService: WorkspaceStatisticsService,
+		private readonly workspaceMembersService: WorkspaceMembersService,
+		private readonly workspaceInviteService: WorkspaceInviteService
 	) { }
 
 	@Get()
@@ -85,7 +80,7 @@ export class WorkspaceController {
 	async getMembers(
 		@Param('workspaceId') workspaceId: string,
 	) {
-		return this.workspaceService.getMembers(
+		return this.workspaceMembersService.getMembers(
 			workspaceId,
 		)
 	}
@@ -99,7 +94,7 @@ export class WorkspaceController {
 		@WorkspaceContext() workspace: IWorkspaceContext,
 		@User() user: Express.User
 	) {
-		return this.workspaceService.changeMemberRole(
+		return this.workspaceMembersService.changeMemberRole(
 			user.id,
 			workspaceId,
 			memberId,
@@ -115,7 +110,7 @@ export class WorkspaceController {
 		@Param('memberId') memberId: string,
 		@WorkspaceContext() workspace: IWorkspaceContext
 	) {
-		return this.workspaceService.deleteMember(
+		return this.workspaceMembersService.deleteMember(
 			workspaceId,
 			memberId,
 			workspace.workspaceRole
@@ -129,7 +124,7 @@ export class WorkspaceController {
 		@Body() dto: CreateInviteLinkDto,
 		@WorkspaceContext() workspace: IWorkspaceContext
 	) {
-		return this.workspaceService.createInviteLink(
+		return this.workspaceInviteService.createInviteLink(
 			workspaceId,
 			dto,
 			workspace.workspaceRole
@@ -138,7 +133,7 @@ export class WorkspaceController {
 
 	@Get('invite/:token')
 	async validateInvite(@Param('token') token: string) {
-		return this.workspaceService.validateInvite(token)
+		return this.workspaceInviteService.validateInvite(token)
 	}
 
 	@Post('invite/:token/accept')
@@ -146,7 +141,7 @@ export class WorkspaceController {
 		@Param('token') token: string,
 		@User() user: Express.User
 	) {
-		return this.workspaceService.acceptInvite(
+		return this.workspaceInviteService.acceptInvite(
 			token,
 			user.id
 		)
@@ -158,7 +153,7 @@ export class WorkspaceController {
 		@Param('workspaceId') workspaceId: string,
 		@User() user: Express.User
 	) {
-		return this.workspaceService.getWorkspaceMember(
+		return this.workspaceMembersService.getWorkspaceMember(
 			user.id,
 			workspaceId
 		)

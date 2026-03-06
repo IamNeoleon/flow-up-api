@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import { WorkspaceService } from 'src/modules/workspace/workspace.service';
+import { WorkspaceMembersService } from 'src/modules/workspace/services/workspace-members.service';
 
 export interface AccessContext {
    workspaceId: string;
@@ -11,7 +11,7 @@ export interface AccessContext {
 export class AccessContextResolver {
    constructor(
       private readonly prisma: PrismaService,
-      private readonly workspaceService: WorkspaceService
+      private readonly workspaceMembersService: WorkspaceMembersService
    ) { }
 
    async resolve(userId: string, resource: {
@@ -46,7 +46,7 @@ export class AccessContextResolver {
 
       if (!workspaceId) return null;
 
-      const workspaceRole = await this.workspaceService.getWorkspaceMember(userId, workspaceId);
+      const workspaceRole = await this.workspaceMembersService.getWorkspaceMember(userId, workspaceId);
 
       if (!workspaceRole) return null;
 

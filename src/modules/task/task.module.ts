@@ -8,6 +8,8 @@ import { R2Module } from '../r2/r2.module';
 import { TaskCommentService } from './services/task-comment.service';
 import { NotificationModule } from '../notification/notification.module';
 import { AppWsModule } from '../app-ws/app-ws.module';
+import { TaskAttachmentsService } from './services/task-attachments.service';
+import { TaskSubtasksService } from './services/task-subtasks.service';
 
 @Module({
   imports: [
@@ -20,6 +22,6 @@ import { AppWsModule } from '../app-ws/app-ws.module';
     NotificationModule
   ],
   controllers: [TaskController],
-  providers: [TaskService, TaskCommentService],
+  providers: [TaskService, TaskCommentService, TaskAttachmentsService, TaskSubtasksService],
 })
 export class TaskModule { }

@@ -9,18 +9,22 @@ import { CreateSubTaskDto } from './dto/create-subtask.dto';
 import { UpdateSubTaskDto } from './dto/update-subtask.dto';
 import { User } from 'src/common/decorators/user.decorator';
 import { WorkspaceContext } from 'src/common/decorators/workspace-context.decorator';
-import { type IWorkspaceContext } from 'src/common/types/workspace-context';
 import { PresignTaskAttachmentUploadDto } from './dto/presign-attachment.dto';
 import { TaskCommentService } from './services/task-comment.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { VerifiedGuard } from 'src/common/guards/verified.guard';
+import { TaskSubtasksService } from './services/task-subtasks.service';
+import { TaskAttachmentsService } from './services/task-attachments.service';
+import { type IWorkspaceContext } from 'src/common/types/workspace-context';
 
 @UseGuards(JwtAuthGuard, WorkspaceGuard, VerifiedGuard)
 @Controller('/boards/:boardId/columns/:colId/tasks')
 export class TaskController {
    constructor(
       private readonly taskService: TaskService,
-      private readonly taskComService: TaskCommentService
+      private readonly taskSubtasksService: TaskSubtasksService,
+      private readonly taskComService: TaskCommentService,
+      private readonly taskAttchService: TaskAttachmentsService
    ) { }
 
    @Get(':taskId')
@@ -103,7 +107,7 @@ export class TaskController {
       @Body() dto: CreateSubTaskDto,
       @WorkspaceContext() workspace: IWorkspaceContext
    ) {
-      return this.taskService.createSubtask(workspace.workspaceRole, boardId, taskId, user.id, dto)
+      return this.taskSubtasksService.createSubtask(workspace.workspaceRole, boardId, taskId, user.id, dto)
    }
 
    @Patch(':taskId/subtasks/:subtaskId')
@@ -115,7 +119,7 @@ export class TaskController {
       @Body() dto: UpdateSubTaskDto,
       @WorkspaceContext() workspace: IWorkspaceContext
    ) {
-      return this.taskService.updateSubtask(workspace.workspaceRole, boardId, taskId, subtaskId, user.id, dto)
+      return this.taskSubtasksService.updateSubtask(workspace.workspaceRole, boardId, taskId, subtaskId, user.id, dto)
    }
 
    @Delete(':taskId/subtasks/:subtaskId')
@@ -126,12 +130,12 @@ export class TaskController {
       @User() user: Express.User,
       @WorkspaceContext() workspace: IWorkspaceContext
    ) {
-      return this.taskService.deleteSubtask(workspace.workspaceRole, boardId, taskId, subtaskId, user.id)
+      return this.taskSubtasksService.deleteSubtask(workspace.workspaceRole, boardId, taskId, subtaskId, user.id)
    }
 
    @Get(':taskId/attachments')
    async getAttachments(@Param('taskId') taskId: string) {
-      return this.taskService.getAttachments(taskId)
+      return this.taskAttchService.getAttachments(taskId)
    }
 
    @Post(':taskId/attachments/presign-upload')
@@ -142,7 +146,7 @@ export class TaskController {
       @User() user: Express.User,
       @WorkspaceContext() workspace: IWorkspaceContext
    ) {
-      return this.taskService.presignTaskAttachmentUpload({
+      return this.taskAttchService.presignTaskAttachmentUpload({
          boardId,
          taskId,
          dto,
@@ -159,7 +163,7 @@ export class TaskController {
       @User() user: Express.User,
       @WorkspaceContext() workspace: IWorkspaceContext
    ) {
-      return this.taskService.completeTaskAttachmentUpload({
+      return this.taskAttchService.completeTaskAttachmentUpload({
          boardId,
          taskId,
          attachmentId,
@@ -176,7 +180,7 @@ export class TaskController {
       @User() user: Express.User,
       @WorkspaceContext() workspace: IWorkspaceContext
    ) {
-      return this.taskService.presignTaskAttachmentDownload({
+      return this.taskAttchService.presignTaskAttachmentDownload({
          boardId,
          taskId,
          attachmentId,
@@ -193,7 +197,7 @@ export class TaskController {
       @User() user: Express.User,
       @WorkspaceContext() workspace: IWorkspaceContext
    ) {
-      return this.taskService.deleteTaskAttachment({
+      return this.taskAttchService.deleteTaskAttachment({
          boardId,
          taskId,
          attachmentId,
@@ -240,6 +244,4 @@ export class TaskController {
    ) {
       return this.taskComService.delete({ boardId, userId: user.id, commentId: comId, workspaceRole: workspace.workspaceRole })
    }
-
-
 }
