@@ -18,6 +18,7 @@ import { NotificationsSchedulerModule } from './modules/notifications-scheduler/
 import { MailModule } from './modules/mail/mail.module';
 import { RecentTasksModule } from './modules/recent-tasks/recent-tasks.module';
 import { PrioritiesModule } from './modules/priorities/priorities.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -42,7 +43,8 @@ import { PrioritiesModule } from './modules/priorities/priorities.module';
     MailModule,
     ScheduleModule,
     RecentTasksModule,
-    PrioritiesModule
+    PrioritiesModule,
+    HealthModule
   ],
 })
 export class AppModule { }
