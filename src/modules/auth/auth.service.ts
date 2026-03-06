@@ -1,14 +1,14 @@
 import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import * as argon2 from 'argon2'
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { CreateUserDto } from 'src/modules/user/dto/create-user.dto';
 import { UserService } from 'src/modules/user/user.service';
 import { LoginDto } from './dto/login.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { type Request, type Response } from 'express';
-import * as argon2 from 'argon2'
-import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
-import { Prisma, PrismaClient } from '@prisma/client';
 import { generateUsername } from 'src/common/utils/generate-username';
 import { normalizeUsername } from 'src/common/utils/normalize-username';
 
@@ -32,7 +32,8 @@ export class AuthService {
 					data: {
 						fullName: displayName,
 						username,
-						email
+						email,
+						isEmailVerified: true
 					},
 				});
 
@@ -138,10 +139,10 @@ export class AuthService {
 
 		const user = await this.userService.findByEmail(email)
 
-		if (!user || !password || !user.password) throw new UnauthorizedException('Неверный логин или пароль')
+		if (!user || !password || !user.password) throw new UnauthorizedException('Invalid credentials')
 
 		const isValid = await argon2.verify(user.password, password)
-		if (!isValid) throw new UnauthorizedException('Неверный логин или пароль')
+		if (!isValid) throw new UnauthorizedException('Invalid credentials')
 
 		const session = await this.prismaService.authSession.create({
 			data: {
