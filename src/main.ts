@@ -6,12 +6,15 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
 	const app = await NestFactory.create(AppModule);
 
-	app.setGlobalPrefix('api')
+	app.setGlobalPrefix('api');
 
-	app.use(cookieParser())
+	app.use(cookieParser());
 
 	app.enableCors({
-		origin: ['http://localhost:5173', 'http://localhost:4173'],
+		origin: [
+			'http://localhost:5173',
+			'http://localhost:4173',
+		],
 		methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
 		credentials: true,
 	});
@@ -20,10 +23,11 @@ async function bootstrap() {
 		new ValidationPipe({
 			whitelist: true,
 			forbidNonWhitelisted: true,
-			transform: true
-		})
-	)
+			transform: true,
+		}),
+	);
 
-	await app.listen(process.env.PORT ?? 3000);
+	const port = Number(process.env.PORT) || 10000;
+	await app.listen(port, '0.0.0.0');
 }
 bootstrap();
