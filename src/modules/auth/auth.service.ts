@@ -56,7 +56,10 @@ export class AuthService {
 		const accessTtl = (this.configService.get<string>('JWT_ACCESS_TTL') ?? '10m') as JwtSignOptions['expiresIn'];
 		const refreshTtl = (this.configService.get<string>('JWT_REFRESH_TTL') ?? '7d') as JwtSignOptions['expiresIn'];
 
-		const session = await this.prismaService.authSession.findUnique({ where: { id: user.sessionId } });
+		const session = await this.prismaService.authSession.findUnique({
+			where: { id: user.sessionId },
+		});
+
 		if (!session || session.revokedAt) throw new UnauthorizedException('Session revoked');
 		if (session.expiresAt.getTime() <= Date.now()) throw new UnauthorizedException('Session expired');
 
@@ -80,10 +83,12 @@ export class AuthService {
 			},
 		});
 
+		const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+
 		res.cookie('refresh_token', refreshToken, {
 			httpOnly: true,
-			sameSite: 'lax',
-			secure: false,
+			sameSite: isProd ? 'none' : 'lax',
+			secure: isProd,
 			path: '/',
 			maxAge: 7 * 24 * 60 * 60 * 1000,
 		});
