@@ -20,7 +20,8 @@ import { attachUser } from './utils/ws-auth.utils';
 	cors: {
 		origin: [
 			'http://localhost:5173',
-			'http://localhost:4173'
+			'http://localhost:4173',
+			'https://flow-up-web.vercel.app'
 		],
 		credentials: true,
 		methods: ['GET', 'POST'],
