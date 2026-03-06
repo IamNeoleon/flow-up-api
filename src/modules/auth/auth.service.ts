@@ -8,8 +8,9 @@ import { type Request, type Response } from 'express';
 import * as argon2 from 'argon2'
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { generateUsername } from 'src/common/utils/generate-username';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { generateUsername } from 'src/common/utils/generate-username';
+import { normalizeUsername } from 'src/common/utils/normalize-username';
 
 @Injectable()
 export class AuthService {
@@ -35,11 +36,9 @@ export class AuthService {
 					},
 				});
 
-				console.log('✅ User created:', user);
 				return user;
 			} catch (err: any) {
 				if (err.code === 'P2002' && err.meta?.target?.includes('username')) {
-					console.warn(`⚠️ Попытка #${attempt}: username уже существует, пробуем другой`);
 					continue;
 				}
 
@@ -47,7 +46,7 @@ export class AuthService {
 			}
 		}
 
-		throw new Error('❌ Не удалось создать пользователя после 3 попыток');
+		throw new Error('Failed to create user after 3 attempts');
 	}
 
 	async rotateTokens(user: Express.User, res: Response) {
@@ -92,19 +91,31 @@ export class AuthService {
 	}
 
 	async register(dto: CreateUserDto, req: Request, res: Response) {
-		const email = dto.email.trim().toLowerCase()
+		const { email, username, fullName, password } = dto
 
-		const existing = await this.prismaService.user.findUnique({ where: { email } });
-		if (existing) throw new ConflictException('Такой email уже используется');
+		const normalizedEmail = email.trim().toLowerCase();
+		const normalizedUsername = normalizeUsername(username);
 
-		const hashedPassword = await argon2.hash(dto.password)
+		const [emailExists, usernameExists] = await Promise.all([
+			this.prismaService.user.findUnique({
+				where: { email: normalizedEmail }
+			}),
+			this.prismaService.user.findUnique({
+				where: { username: normalizedUsername }
+			})
+		]);
+
+		if (emailExists) throw new ConflictException('This email is already in use');
+		if (usernameExists) throw new ConflictException('This username is already in use')
+
+		const hashedPassword = await argon2.hash(password);
 
 		const user = await this.prismaService.user.create({
 			data: {
-				email,
+				email: normalizedEmail,
 				password: hashedPassword,
-				username: dto.username,
-				fullName: dto.fullName
+				username: normalizedUsername,
+				fullName: fullName
 			}
 		})
 
