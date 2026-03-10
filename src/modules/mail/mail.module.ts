@@ -14,6 +14,9 @@ import { MailerModule } from '@nestjs-modules/mailer';
           user: process.env.MAIL_USER,
           pass: process.env.MAIL_PASS,
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
       },
       defaults: {
         from: `"No Reply" <${process.env.MAIL_USER}>`,
