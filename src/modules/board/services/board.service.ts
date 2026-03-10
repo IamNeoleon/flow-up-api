@@ -15,6 +15,7 @@ import {
 } from '../board.policy';
 import { TWorkspaceRole } from 'src/common/types/workspaceRole';
 import { BoardRoles } from '@prisma/client';
+import { BOARD_TEMPLATES } from '../constants/board-templates';
 
 @Injectable()
 export class BoardService {
@@ -53,8 +54,8 @@ export class BoardService {
 		workspaceRole: TWorkspaceRole,
 		userId: string,
 	) {
-		if (!canCreateBoard({ workspaceRole: workspaceRole })) {
-			throw new ForbiddenException('У вас нет доступа к этому ресурсу');
+		if (!canCreateBoard({ workspaceRole })) {
+			throw new ForbiddenException();
 		}
 
 		const user = await this.prismaService.user.findUnique({
@@ -62,8 +63,9 @@ export class BoardService {
 				id: userId,
 			},
 		});
+
 		if (!user) {
-			throw new NotFoundException('Не найден пользователь с таким id');
+			throw new NotFoundException("User not found");
 		}
 
 		const workspace = await this.prismaService.workspace.findUnique({
@@ -71,26 +73,44 @@ export class BoardService {
 				id: workspaceId,
 			},
 		});
-		if (!workspace)
-			throw new NotFoundException('Не удалось найти рабочее пространство');
 
-		const { name, description } = createBoardDto;
+		if (!workspace) {
+			throw new NotFoundException("Workspace not found");
+		}
 
-		const createdBoard = await this.prismaService.board.create({
-			data: {
-				name,
-				description,
-				workspaceId: workspace.id,
-				ownerId: user.id,
-			},
-		});
+		const { name, template } = createBoardDto;
+		const templateConfig = template ? BOARD_TEMPLATES[template] : null;
 
-		await this.prismaService.boardMembers.create({
-			data: {
-				userId: user.id,
-				role: 'OWNER',
-				boardId: createdBoard.id,
-			},
+		const createdBoard = await this.prismaService.$transaction(async (tx) => {
+			const board = await tx.board.create({
+				data: {
+					name,
+					ownerId: userId,
+					workspaceId,
+				},
+			});
+
+			await tx.boardMembers.create({
+				data: {
+					userId: user.id,
+					role: "OWNER",
+					boardId: board.id,
+				},
+			});
+
+			if (templateConfig && templateConfig.columns.length > 0) {
+				await tx.column.createMany({
+					data: templateConfig.columns.map((column, index) => ({
+						name: column.name,
+						status: column.status,
+						color: column.color,
+						order: index + 1,
+						boardId: board.id,
+					})),
+				});
+			}
+
+			return board;
 		});
 
 		return createdBoard;

@@ -27,7 +27,12 @@ export class BoardController {
 		@WorkspaceContext() workspace: IWorkspaceContext,
 		@User() user: Express.User
 	) {
-		return this.boardService.create(workspaceId, createBoardDto, workspace.workspaceRole, user.id);
+		return this.boardService.create(
+			workspaceId,
+			createBoardDto,
+			workspace.workspaceRole,
+			user.id
+		);
 	}
 
 	@Get(':boardId')
