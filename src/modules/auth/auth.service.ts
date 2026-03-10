@@ -121,7 +121,8 @@ export class AuthService {
 				email: normalizedEmail,
 				password: hashedPassword,
 				username: normalizedUsername,
-				fullName: fullName
+				fullName: fullName,
+				isEmailVerified: true
 			}
 		})
 
