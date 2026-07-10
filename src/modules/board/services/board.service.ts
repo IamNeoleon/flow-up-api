@@ -1,315 +1,156 @@
 import {
-	ConflictException,
-	ForbiddenException,
-	Injectable,
-	NotFoundException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
 } from '@nestjs/common';
 import { CreateBoardDto } from '../dto/create-board.dto';
 import { UpdateBoardDto } from '../dto/update-board.dto';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import {
-	canChangeBoardMember,
-	canCreateBoard,
-	canDeleteBoard,
-	canEditBoard,
-} from '../board.policy';
+import { canCreateBoard, canDeleteBoard, canEditBoard } from '../board.policy';
 import { TWorkspaceRole } from 'src/common/types/workspaceRole';
-import { BoardRoles } from '@prisma/client';
 import { BOARD_TEMPLATES } from '../constants/board-templates';
 
 @Injectable()
 export class BoardService {
-	constructor(private readonly prismaService: PrismaService) { }
+    constructor(private readonly prismaService: PrismaService) {}
 
-	async uploadImage() {
+    async updateDateBoard(boardId: string) {
+        await this.prismaService.board.update({
+            where: {
+                id: boardId,
+            },
+            data: {
+                updatedAt: new Date(),
+            },
+        });
+    }
 
-	}
+    async create(
+        workspaceId: string,
+        createBoardDto: CreateBoardDto,
+        workspaceRole: TWorkspaceRole,
+        userId: string,
+    ) {
+        if (!canCreateBoard({ workspaceRole })) {
+            throw new ForbiddenException();
+        }
 
-	async updateDateBoard(boardId: string) {
-		await this.prismaService.board.update({
-			where: {
-				id: boardId,
-			},
-			data: {
-				updatedAt: new Date(),
-			},
-		});
-	}
+        const user = await this.prismaService.user.findUnique({
+            where: {
+                id: userId,
+            },
+        });
 
-	async getBoardRole(boardId: string, userId: string) {
-		const board = await this.prismaService.board.findUnique({
-			where: { id: boardId },
-			include: { boardMembers: true },
-		});
-		if (!board) return null;
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
 
-		const member = board.boardMembers.find((m) => m.userId === userId);
+        const workspace = await this.prismaService.workspace.findUnique({
+            where: {
+                id: workspaceId,
+            },
+        });
 
-		return member?.role ?? 'VIEWER';
-	}
+        if (!workspace) {
+            throw new NotFoundException('Workspace not found');
+        }
 
-	async create(
-		workspaceId: string,
-		createBoardDto: CreateBoardDto,
-		workspaceRole: TWorkspaceRole,
-		userId: string,
-	) {
-		if (!canCreateBoard({ workspaceRole })) {
-			throw new ForbiddenException();
-		}
+        const { name, template } = createBoardDto;
+        const templateConfig = template ? BOARD_TEMPLATES[template] : null;
 
-		const user = await this.prismaService.user.findUnique({
-			where: {
-				id: userId,
-			},
-		});
+        const createdBoard = await this.prismaService.$transaction(
+            async (tx) => {
+                const board = await tx.board.create({
+                    data: {
+                        name,
+                        ownerId: userId,
+                        workspaceId,
+                    },
+                });
 
-		if (!user) {
-			throw new NotFoundException("User not found");
-		}
+                if (templateConfig && templateConfig.columns.length > 0) {
+                    await tx.column.createMany({
+                        data: templateConfig.columns.map((column, index) => ({
+                            name: column.name,
+                            status: column.status,
+                            color: column.color,
+                            order: index + 1,
+                            boardId: board.id,
+                        })),
+                    });
+                }
 
-		const workspace = await this.prismaService.workspace.findUnique({
-			where: {
-				id: workspaceId,
-			},
-		});
+                return board;
+            },
+        );
 
-		if (!workspace) {
-			throw new NotFoundException("Workspace not found");
-		}
+        return createdBoard;
+    }
 
-		const { name, template } = createBoardDto;
-		const templateConfig = template ? BOARD_TEMPLATES[template] : null;
+    async findOne(boardId: string) {
+        return this.prismaService.board.findUnique({
+            where: {
+                id: boardId,
+            },
+        });
+    }
 
-		const createdBoard = await this.prismaService.$transaction(async (tx) => {
-			const board = await tx.board.create({
-				data: {
-					name,
-					ownerId: userId,
-					workspaceId,
-				},
-			});
+    async update(
+        id: string,
+        updateBoardDto: UpdateBoardDto,
+        workspaceRole: TWorkspaceRole,
+    ) {
+        if (!canEditBoard({ workspaceRole })) {
+            throw new ForbiddenException('У вас нет доступа к этому ресурсу');
+        }
 
-			await tx.boardMembers.create({
-				data: {
-					userId: user.id,
-					role: "OWNER",
-					boardId: board.id,
-				},
-			});
+        const { name, description } = updateBoardDto;
+        return this.prismaService.board.update({
+            where: {
+                id: id,
+            },
+            data: {
+                name,
+                description,
+            },
+        });
+    }
 
-			if (templateConfig && templateConfig.columns.length > 0) {
-				await tx.column.createMany({
-					data: templateConfig.columns.map((column, index) => ({
-						name: column.name,
-						status: column.status,
-						color: column.color,
-						order: index + 1,
-						boardId: board.id,
-					})),
-				});
-			}
+    async remove(id: string, workspaceRole: TWorkspaceRole) {
+        if (!canDeleteBoard({ workspaceRole })) {
+            throw new ForbiddenException('У вас нет доступа к этому ресурсу');
+        }
 
-			return board;
-		});
+        const board = await this.prismaService.board.findUnique({
+            where: { id: id },
+        });
+        if (!board) throw new NotFoundException('Не найдена доска с таким id');
 
-		return createdBoard;
-	}
+        return this.prismaService.board.delete({
+            where: {
+                id: id,
+            },
+        });
+    }
 
-	async findOne(boardId: string) {
-		return this.prismaService.board.findUnique({
-			where: {
-				id: boardId,
-			},
-		});
-	}
+    async getAllTaskList(boardId: string) {
+        const tasks = await this.prismaService.task.findMany({
+            where: {
+                column: {
+                    boardId: boardId,
+                },
+            },
+            include: {
+                column: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+                priority: true,
+            },
+        });
 
-	async update(
-		id: string,
-		updateBoardDto: UpdateBoardDto,
-		workspaceRole: TWorkspaceRole,
-		userId: string,
-	) {
-		const boardRole = await this.getBoardRole(id, userId);
-
-		if (!canEditBoard({ workspaceRole, boardRole })) {
-			throw new ForbiddenException('У вас нет доступа к этому ресурсу');
-		}
-
-		const { name, description } = updateBoardDto;
-		return this.prismaService.board.update({
-			where: {
-				id: id,
-			},
-			data: {
-				name,
-				description,
-			},
-		});
-	}
-
-	async remove(id: string, workspaceRole: TWorkspaceRole, userId: string) {
-		const boardRole = await this.getBoardRole(id, userId);
-
-		if (!canDeleteBoard({ workspaceRole, boardRole })) {
-			throw new ForbiddenException('У вас нет доступа к этому ресурсу');
-		}
-
-		const board = await this.prismaService.board.findUnique({
-			where: { id: id },
-		});
-		if (!board) throw new NotFoundException('Не найдена доска с таким id');
-
-		return this.prismaService.board.delete({
-			where: {
-				id: id,
-			},
-		});
-	}
-
-	async getBoardMembers(boardId: string, workspaceId: string) {
-		const workspace = await this.prismaService.workspace.findUnique({
-			where: { id: workspaceId },
-			include: {
-				owner: {
-					select: {
-						id: true,
-						email: true,
-						username: true,
-						avatar: true,
-						fullName: true,
-					},
-				},
-			},
-		});
-		if (!workspace) throw new NotFoundException();
-
-		const workspaceMembers = await this.prismaService.workspaceMember.findMany({
-			where: { workspaceId },
-			select: {
-				userId: true,
-				user: {
-					select: {
-						id: true,
-						email: true,
-						username: true,
-						avatar: true,
-						fullName: true,
-					},
-				},
-			},
-		});
-
-		const boardMembers = await this.prismaService.boardMembers.findMany({
-			where: { boardId },
-			select: { userId: true, role: true },
-		});
-
-		const boardMap = new Map(boardMembers.map((m) => [m.userId, m.role]));
-
-		const allMembers = [...workspaceMembers];
-
-		allMembers.push({
-			userId: workspace.ownerId,
-			user: workspace.owner,
-		});
-
-		const result = allMembers.map((member) => {
-			const boardRoleFromDB = boardMap.get(member.userId) ?? 'VIEWER';
-
-			const boardRole =
-				member.userId === workspace.ownerId ? 'OWNER' : boardRoleFromDB;
-
-			return {
-				userId: member.userId,
-				user: member.user,
-				boardRole,
-			};
-		});
-
-		return result;
-	}
-
-	async changeRoleMember(args: {
-		userId: string;
-		boardId: string;
-		workspaceId: string;
-		workspaceRole: TWorkspaceRole;
-		targetUserId: string;
-		targetRole: BoardRoles | 'VIEWER';
-	}) {
-		const {
-			userId,
-			boardId,
-			workspaceId,
-			workspaceRole,
-			targetUserId,
-			targetRole,
-		} = args;
-
-		if (targetUserId === userId) throw new ConflictException();
-
-		const targetWs = await this.prismaService.workspaceMember.findUnique({
-			where: { userId_workspaceId: { userId: targetUserId, workspaceId } },
-			select: { userId: true },
-		});
-		if (!targetWs)
-			throw new NotFoundException('Target is not a workspace member');
-
-		const boardMember = await this.prismaService.boardMembers.findUnique({
-			where: { userId_boardId: { userId, boardId } },
-			select: { role: true, userId: true },
-		});
-
-		if (
-			!canChangeBoardMember({ workspaceRole, boardRole: boardMember?.role })
-		) {
-			throw new ForbiddenException();
-		}
-
-		const boardOwner = await this.prismaService.boardMembers.findFirst({
-			where: { role: 'OWNER', boardId },
-			select: { userId: true },
-		});
-		if (!boardOwner) throw new NotFoundException();
-
-		if (boardOwner.userId === targetUserId && targetRole !== 'OWNER') {
-			throw new ConflictException(
-				'Cannot change board owner role without transferring ownership',
-			);
-		}
-
-		if (targetRole === 'OWNER' && boardOwner.userId === targetUserId)
-			return true;
-
-		if (targetRole === 'OWNER') {
-			return await this.prismaService.$transaction(async (tx) => {
-				await tx.boardMembers.update({
-					where: { userId_boardId: { userId: boardOwner.userId, boardId } },
-					data: { role: 'EDITOR' },
-				});
-
-				await tx.boardMembers.upsert({
-					where: { userId_boardId: { userId: targetUserId, boardId } },
-					create: { userId: targetUserId, boardId, role: 'OWNER' },
-					update: { role: 'OWNER' },
-				});
-
-				return true;
-			});
-		}
-
-		if (targetRole === 'VIEWER') {
-			await this.prismaService.boardMembers.deleteMany({
-				where: { userId: targetUserId, boardId },
-			});
-			return true;
-		}
-
-		return await this.prismaService.boardMembers.upsert({
-			where: { userId_boardId: { userId: targetUserId, boardId } },
-			create: { userId: targetUserId, boardId, role: targetRole },
-			update: { role: targetRole },
-		});
-	}
+        return tasks;
+    }
 }

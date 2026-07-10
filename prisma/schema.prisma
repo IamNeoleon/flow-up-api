@@ -20,7 +20,6 @@ model User {
    createdAt           DateTime            @default(now())
    updatedAt           DateTime            @updatedAt
    tasks               Task[]
-   boardMembers        BoardMembers[]
    boards              Board[]
    workspaceActivities WorkspaceActivity[]
    oauthAccounts       OAuthAccount[]
@@ -114,29 +113,17 @@ model WorkspaceInvite {
 }
 
 model Board {
-   id           String         @id @default(uuid())
-   name         String
-   description  String?
-   imageUrl     String?
-   workspaceId  String
-   workspace    Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-   ownerId      String
-   owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-   columns      Column[]
-   createdAt    DateTime       @default(now())
-   updatedAt    DateTime       @updatedAt
-   boardMembers BoardMembers[]
-}
-
-model BoardMembers {
-   id      String     @id @default(uuid())
-   userId  String
-   user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-   boardId String
-   board   Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
-   role    BoardRoles
-
-   @@unique([userId, boardId])
+   id          String    @id @default(uuid())
+   name        String
+   description String?
+   imageUrl    String?
+   workspaceId String
+   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+   ownerId     String
+   owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+   columns     Column[]
+   createdAt   DateTime  @default(now())
+   updatedAt   DateTime  @updatedAt
 }
 
 model Column {
@@ -287,11 +274,6 @@ enum AttachmentStatus {
 enum OAuthProvider {
    GOOGLE
    GITHUB
-}
-
-enum BoardRoles {
-   EDITOR
-   OWNER
 }
 
 enum WorkspaceRoles {

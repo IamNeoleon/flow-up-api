@@ -1,10 +1,11 @@
-import { IsNotEmpty, IsNumber, IsString } from "class-validator";
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class MoveTaskDto {
-   @IsNotEmpty()
-   @IsString()
-   targetColId: string;
-   @IsNotEmpty()
-   @IsNumber()
-   newOrder: number
+    @IsNotEmpty()
+    @IsString()
+    targetColId: string;
+    @IsNotEmpty()
+    @IsNumber()
+    @IsOptional()
+    newOrder?: number;
 }

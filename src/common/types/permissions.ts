@@ -1,8 +1,6 @@
-type BoardRole = 'OWNER' | 'EDITOR' | 'VIEWER' | null
-type WorkspaceRole = 'OWNER' | 'EDITOR' | 'MEMBER'
+import { WorkspaceRoles } from '@prisma/client';
 
 export type PermissionContext = {
-   workspaceRole?: WorkspaceRole
-   boardRole?: BoardRole
-   isAssignee?: boolean
-}
+    workspaceRole?: WorkspaceRoles;
+    isAssignee?: boolean;
+};
